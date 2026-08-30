@@ -1,0 +1,19 @@
+[project]
+name = "call-me-maybe"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "llm>=0.33",
+    "llm-sdk>=0.1.0",
+    "numpy>=2.0.0",
+    "pydantic>=2.13.4",
+]
+
+[dependency-groups]
+dev = [
+    "flake8>=7.3.0",
+    "mypy>=2.3.0",
+    "pytest>=9.1.1",
+]
+[tool.uv.sources]
+llm-sdk = { path = "llm_sdk", editable = true }
