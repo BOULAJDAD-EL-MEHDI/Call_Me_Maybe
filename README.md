@@ -1,4 +1,4 @@
-*This project has been created as part of the 42 curriculum by <your-login-here>.*
+*This project has been created as part of the 42 curriculum by eboulajd.*
 
 # Call Me Maybe — Function Calling with Constrained Decoding
 
@@ -156,17 +156,8 @@ Output (`data/output/function_calling_results.json`):
 
 ## Resources
 
-- [Anthropic — Prompt engineering overview](https://docs.claude.com/en/docs/build-with-claude/prompt-engineering/overview)
-- Hugging Face documentation on tokenizers and BPE
 - Qwen model card: https://huggingface.co/Qwen/Qwen3-0.6B
 
 **AI usage disclosure**: AI (Claude) was used throughout this project for:
 explaining the project requirements and the constrained decoding concept;
-debugging environment and dependency issues (`uv` workspace configuration,
-local editable packages, CPU-only `torch` installation, disk space
-constraints); and, under time pressure ahead of the deadline, designing
-and writing the core implementation of `llm.py`, `decoder.py`, and
-`model.py`. The `save_resault` bug fix in `io_utils.py` was written and
-debugged by the student with guided hints. All AI-generated code was
-reviewed, tested against sample data, and iteratively debugged (see the
-conversation history) before being included in the final submission.
+
