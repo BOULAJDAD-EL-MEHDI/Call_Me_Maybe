@@ -22,7 +22,7 @@ import re
 
 from .llm import LLMWrapper
 
-MAX_VALUE_TOKENS = 20  # safety cap so a broken prompt can't loop forever
+MAX_VALUE_TOKENS = 20
 NUMBER_CHARS = set("0123456789.-")
 NUMBER_PATTERN = re.compile(r"^-?\d*\.?\d*$")
 COMPLETE_NUMBER_PATTERN = re.compile(r"^-?\d+(\.\d+)?$")
@@ -58,7 +58,9 @@ def generate_constrained_choice(
                 best_id = token_id
 
         if best_id == -1:
-            raise ValueError(f"No valid token found among choices: {choices}")
+            raise ValueError(
+                f"No valid token found among choices: {choices}"
+            )
 
         if generated == "":
             token_str = llm.clean_token(best_id).strip(" ")
@@ -70,37 +72,45 @@ def generate_constrained_choice(
     return generated
 
 
-def generate_constrained_number(llm: LLMWrapper, input_ids: list[int]) -> float:
+def generate_constrained_number(
+    llm: LLMWrapper, input_ids: list[int]
+) -> float:
     """Generate a JSON number, one token at a time.
 
     Only tokens made entirely of digits, '.', or '-' are ever considered.
     We stop as soon as we already have a complete, valid number AND the
-    model's genuine (unconstrained) top choice is not numeric -- meaning
+    model's genuine (unconstrained) top choice is not numeric; that means
     it wants to move on (comma, space, end of sentence...). This avoids
-    forcing more digits just because *some* digit scored highest among
-    the numeric-only candidates.
+    forcing more digits just because *some* digit scored highest among the
+    numeric-only candidates.
     """
     generated = ""
     ids = list(input_ids)
 
     for _ in range(MAX_VALUE_TOKENS):
         logits = llm.get_logits(ids)
-
-        # What would the model pick with NO constraint at all?
-        unconstrained_best_id = max(range(len(logits)), key=lambda i: logits[i])
+        unconstrained_best_id = max(
+            range(len(logits)), key=lambda i: logits[i]
+        )
         unconstrained_best = llm.clean_token(unconstrained_best_id).strip()
         model_wants_more_digits = bool(unconstrained_best) and all(
             ch in NUMBER_CHARS for ch in unconstrained_best
         )
 
-        if generated and COMPLETE_NUMBER_PATTERN.match(generated) and not model_wants_more_digits:
-            break  # we already have a full number and the model wants to stop
+        if (
+            generated
+            and COMPLETE_NUMBER_PATTERN.match(generated)
+            and not model_wants_more_digits
+        ):
+            break
 
         best_id = -1
         best_score = float("-inf")
         for token_id, score in enumerate(logits):
             token_str = llm.clean_token(token_id).strip()
-            if not token_str or any(ch not in NUMBER_CHARS for ch in token_str):
+            if not token_str or any(
+                ch not in NUMBER_CHARS for ch in token_str
+            ):
                 continue
             candidate = generated + token_str
             if NUMBER_PATTERN.match(candidate) and score > best_score:
@@ -108,14 +118,16 @@ def generate_constrained_number(llm: LLMWrapper, input_ids: list[int]) -> float:
                 best_id = token_id
 
         if best_id == -1:
-            break  # no valid numeric token left -> the number is complete
+            break
 
         token_str = llm.clean_token(best_id).strip()
         generated += token_str
         ids.append(best_id)
 
     if not COMPLETE_NUMBER_PATTERN.match(generated):
-        raise ValueError(f"Model failed to produce a valid number, got: {generated!r}")
+        raise ValueError(
+            f"Model failed to produce a valid number, got: {generated!r}"
+        )
 
     return float(generated)
 
@@ -139,7 +151,11 @@ def generate_constrained_string(llm: LLMWrapper, input_ids: list[int]) -> str:
         best_id = max(range(len(logits)), key=lambda i: logits[i])
         token_str = llm.clean_token(best_id)
 
-        if '"' in token_str or "\u010a" in token_str or "\n" in token_str:
+        if (
+            '"' in token_str
+            or "\u010a" in token_str
+            or "\n" in token_str
+        ):
             break
 
         generated += token_str
@@ -148,7 +164,13 @@ def generate_constrained_string(llm: LLMWrapper, input_ids: list[int]) -> str:
     return generated.strip().strip("'\"")
 
 
-def generate_constrained_boolean(llm: LLMWrapper, input_ids: list[int]) -> bool:
+def generate_constrained_boolean(
+    llm: LLMWrapper, input_ids: list[int]
+) -> bool:
     """Generate a JSON boolean using the finite-choice decoder."""
-    choice = generate_constrained_choice(llm, input_ids, ["true", "false"])
+    choice = generate_constrained_choice(
+        llm,
+        input_ids,
+        ["true", "false"],
+    )
     return choice == "true"

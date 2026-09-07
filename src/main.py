@@ -9,8 +9,13 @@ from .model import predict_function_call
 from .models import FunctionCallResult
 
 
-
 def parse_args() -> argparse.Namespace:
+    """Parse command line arguments for the function-calling demo.
+
+    Returns:
+        argparse.Namespace: Parsed values for the function definition file,
+            prompt input file, and output file.
+    """
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -32,6 +37,13 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Execute the end-to-end prompt processing pipeline.
+
+    Loads the function catalog and prompts, predicts the matching
+    function calls, and writes the results to disk. Any single prompt
+    error is skipped without
+    aborting the rest of the run.
+    """
     args = parse_args()
 
     try:
@@ -41,7 +53,9 @@ def main() -> None:
         print(f"Error loading input files: {error}")
         return
 
-    print("Loading model, this can take a while the first time...")
+    print(
+        "Loading model, this can take a while the first time..."
+    )
     llm = LLMWrapper()
     start_time = time.perf_counter()
     results: list[FunctionCallResult] = []
@@ -49,9 +63,10 @@ def main() -> None:
         try:
             result = predict_function_call(llm, item.prompt, functions)
             results.append(result)
-            print(f"OK: {item.prompt!r} -> {result.name}({result.parameters})")
+            print(
+                f"OK: {item.prompt!r} -> {result.name}({result.parameters})"
+            )
         except ValueError as error:
-            # A single bad prompt must not crash the whole program.
             print(f"Skipping prompt {item.prompt!r}: {error}")
 
     try:
@@ -59,11 +74,17 @@ def main() -> None:
     except OSError as error:
         print(f"Error saving results: {error}")
         return
-    
+
     elapsed = time.perf_counter() - start_time
     print(f"Done: wrote {len(results)} results to {args.output}")
     print(f"Processing time: {elapsed:.2f} seconds")
 
 
 if __name__ == "__main__":
-    main()
+    """Run the function-calling demo from the command line."""
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nInterrupted by user")
+    except Exception as error:
+        print(f"Unexpected error: {error}")

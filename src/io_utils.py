@@ -7,6 +7,18 @@ from .models import FunctionCallResult, FunctionDefinition, PromptItem
 
 
 def load_function_definitions(path: str) -> list[FunctionDefinition]:
+    """Load and validate the available function definitions from JSON.
+
+    Args:
+        path: Path to a JSON file containing function schema definitions.
+
+    Returns:
+        list[FunctionDefinition]: Parsed function definitions.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+        ValueError: If the JSON is malformed or schema validation fails.
+    """
     try:
         with open(path, "r") as file:
             data = json.load(file)
@@ -25,6 +37,18 @@ def load_function_definitions(path: str) -> list[FunctionDefinition]:
 
 
 def load_prompts(path: str) -> list[PromptItem]:
+    """Load prompt records from a JSON file and validate each one.
+
+    Args:
+        path: Path to the JSON prompt dataset.
+
+    Returns:
+        list[PromptItem]: Prompt objects ready for inference.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+        ValueError: If the JSON is malformed or prompt validation fails.
+    """
     try:
         with open(path, "r") as file:
             data = json.load(file)
@@ -45,6 +69,15 @@ def load_prompts(path: str) -> list[PromptItem]:
 
 
 def save_resault(path: str, results: list[FunctionCallResult]) -> None:
+    """Write function-call results to a JSON file.
+
+    Args:
+        path: Destination path for the output JSON.
+        results: Predicted function-call results to serialize.
+
+    Raises:
+        OSError: If the output file cannot be created or written.
+    """
     data = [result.model_dump() for result in results]
     try:
         Path(path).parent.mkdir(parents=True, exist_ok=True)

@@ -16,9 +16,7 @@ from .decoder import (
 from .llm import LLMWrapper
 from .models import FunctionCallResult, FunctionDefinition
 
-# A small, fixed vocabulary mapping common "category words" to a regex.
-# This only covers the handful of categories a 0.6B model is unlikely to
-# spell out correctly on its own; it is not meant to grow indefinitely.
+
 CATEGORY_REGEX = {
     "numbers": r"\d+",
     "digits": r"\d+",
@@ -31,7 +29,7 @@ CATEGORY_REGEX = {
 QUOTED_SPAN_PATTERN = re.compile(r"'([^']+)'|\"([^\"]+)\"")
 
 
-def _quoted_spans(prompt: str) -> list[str]:
+def quoted_spans(prompt: str) -> list[str]:
     """Return every single- or double-quoted span in the prompt, in order."""
     spans = []
     for single, double in QUOTED_SPAN_PATTERN.findall(prompt):
@@ -39,22 +37,23 @@ def _quoted_spans(prompt: str) -> list[str]:
     return spans
 
 
-def _deterministic_string(
+def deterministic_string(
     prompt: str,
     param_name: str,
     already_extracted: dict[str, object],
 ) -> str | None:
-    """Best-effort, rule-based extraction for a value already explicitly
-    present in the prompt (a quoted span, a trailing word, a category
-    keyword...). Returns None when nothing safe is found, so the caller
-    can fall back to constrained LLM generation instead of guessing.
+    """Best-effort extraction from a prompt value already present there.
+
+    This handles quoted spans, trailing words, and category keywords.
+    Returns None when nothing safe is found so the caller can fall back to
+    constrained LLM generation instead of guessing.
 
     This exists because forcing a 0.6B model to freely copy a value that
     is already written verbatim in the request is unreliable -- it is
     both unnecessary and error-prone.
     """
     used = {str(value) for value in already_extracted.values()}
-    spans = [span for span in _quoted_spans(prompt) if span not in used]
+    spans = [span for span in quoted_spans(prompt) if span not in used]
 
     if param_name in ("source_string", "s", "text", "string"):
         return max(spans, key=len) if spans else None
@@ -81,7 +80,7 @@ def _deterministic_string(
     return None
 
 
-def _choose_function(
+def choose_function(
     llm: LLMWrapper, prompt: str, functions: list[FunctionDefinition]
 ) -> FunctionDefinition:
     """Ask the LLM to pick which function matches the prompt."""
@@ -89,7 +88,8 @@ def _choose_function(
     descriptions = "\n".join(f"- {f.name}: {f.description}" for f in functions)
 
     context = (
-        "You must choose which function to call to satisfy the user's request.\n"
+        "You must choose which function to call to satisfy the user's "
+        "request.\n"
         f"Available functions:\n{descriptions}\n"
         f"User request: {prompt}\n"
         "Function to call: "
@@ -104,7 +104,7 @@ def _choose_function(
     raise ValueError(f"LLM chose an unknown function: {chosen_name!r}")
 
 
-def _extract_parameter(
+def extract_parameter(
     llm: LLMWrapper,
     prompt: str,
     function: FunctionDefinition,
@@ -115,16 +115,18 @@ def _extract_parameter(
     """Extract one typed parameter value from the prompt.
 
     For strings, an explicit value already present in the prompt is
-    extracted deterministically first (see _deterministic_string).
-    The LLM is only used as a fallback, or for types that are not
-    plain copies of prompt text (numbers, booleans).
+    extracted deterministically first. The LLM is only used as a fallback,
+    or for types that are not plain copies of prompt text (numbers,
+    booleans).
 
     already_extracted holds the parameters already filled in for this
     same function call, so neither the deterministic pass nor the LLM
     blindly repeats a value already used for another parameter.
     """
     if param_type == "string":
-        deterministic_value = _deterministic_string(prompt, param_name, already_extracted)
+        deterministic_value = deterministic_string(
+            prompt, param_name, already_extracted
+        )
         if deterministic_value is not None:
             return deterministic_value
 
@@ -156,12 +158,12 @@ def predict_function_call(
     llm: LLMWrapper, prompt: str, functions: list[FunctionDefinition]
 ) -> FunctionCallResult:
     """Run the full pipeline for a single prompt and return the result."""
-    function = _choose_function(llm, prompt, functions)
+    function = choose_function(llm, prompt, functions)
 
     parameters: dict[str, object] = {}
     for param_name, param_schema in function.parameters.items():
         param_type = param_schema.get("type", "string")
-        parameters[param_name] = _extract_parameter(
+        parameters[param_name] = extract_parameter(
             llm, prompt, function, param_name, param_type, parameters
         )
 

@@ -4,8 +4,9 @@ This module is the ONLY place that talks to the SDK directly.
 Everything else (decoder.py, model.py) only calls methods on LLMWrapper.
 """
 
-import json
 import importlib
+import json
+
 Small_LLM_Model = importlib.import_module("llm_sdk").Small_LLM_Model
 
 
@@ -19,6 +20,11 @@ class LLMWrapper:
     """
 
     def __init__(self, model_name: str = "Qwen/Qwen3-0.6B") -> None:
+        """Initialize the wrapper and preload the tokenizer vocabulary map.
+
+        Args:
+            model_name: Hugging Face model identifier used by the SDK.
+        """
         self.model = Small_LLM_Model(model_name)
         self.id_to_token = self._build_id_to_token()
 
@@ -29,7 +35,9 @@ class LLMWrapper:
             with open(vocab_path, "r") as file:
                 vocab = json.load(file)
         except (OSError, json.JSONDecodeError) as error:
-            raise RuntimeError(f"Could not load vocab file: {vocab_path}") from error
+            raise RuntimeError(
+                f"Could not load vocab file: {vocab_path}"
+            ) from error
         return {token_id: token_str for token_str, token_id in vocab.items()}
 
     def encode(self, text: str) -> list[int]:
